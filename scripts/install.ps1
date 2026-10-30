@@ -5,7 +5,8 @@ param(
     [int]$Issue,
     [string]$AllowedUser,
     [switch]$NoStart,
-    [switch]$Force    # zaten kuruluysa yeniden kayit/guncelleme
+    [switch]$NoGitHub,  # GitHub kontrolu olmadan kur (giris PC'den yapilir)
+    [switch]$Force      # zaten kuruluysa yeniden kayit/guncelleme
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -35,10 +36,10 @@ Write-Host "Veri dizini: $home_"
 # --- config.json (mevcutsa korunur) ---
 $cfgPath = Join-Path $home_ 'config.json'
 if (-not (Test-Path $cfgPath)) {
-    if (-not $Repo) { $Repo = Read-Host 'GitHub kontrol deposu (sahip/depo, OZEL depo olmali; bos = GitHub kontrolu kapali)' }
+    if (-not $Repo -and -not $NoGitHub) { $Repo = Read-Host 'GitHub kontrol deposu (sahip/depo, OZEL depo olmali; bos = GitHub kontrolu kapali)' }
     $cfg = Get-Content (Join-Path $root 'config.example.json') -Raw | ConvertFrom-Json
-    if ($Repo) {
-        if (-not $Issue) { $Issue = [int](Read-Host 'Kontrol konusunun (issue) numarasi (bos/0 = bu bilgisayar icin otomatik yeni issue acilir)') }
+    if ($Repo -and -not $NoGitHub) {
+        # Issue numarasi sorulmaz: verilmediyse asagida bu bilgisayar icin otomatik acilir.
         if (-not $AllowedUser) { $AllowedUser = ($Repo -split '/')[0] }
         $cfg.github.repo = $Repo; $cfg.github.issue = $(if ($Issue) { $Issue } else { $null }); $cfg.github.allowedUsers = @($AllowedUser)
     } else { $cfg.github.repo = $null; $cfg.github.issue = $null; $cfg.github.allowedUsers = @() }
@@ -49,15 +50,23 @@ if (-not (Test-Path $cfgPath)) {
 # --- GitHub tokeni (DPAPI) ---
 $tokenPath = Join-Path $home_ 'github-token.dpapi'
 if (-not (Test-Path $tokenPath) -and ((Get-Content $cfgPath -Raw | ConvertFrom-Json).github.repo)) {
-    Write-Host 'GitHub tokeni: yalnizca bu depodaki Issues (read/write) iznine sahip fine-grained token olusturun.'
-    & (Join-Path $PSScriptRoot 'set-github-token.ps1')
+    if ($env:CLAUDE_AGENT_GH_TOKEN) {
+        # Katilimsiz kurulum: token ortam degiskeninden alinir ve DPAPI ile saklanir (duz metin dosyaya yazilmaz).
+        $env:CLAUDE_AGENT_GH_TOKEN | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString | Set-Content -LiteralPath $tokenPath -Encoding ascii
+        Write-Host 'GitHub tokeni ortam degiskeninden alindi ve DPAPI ile saklandi.'
+    } else {
+        & (Join-Path $PSScriptRoot 'set-github-token.ps1') -Repo ((Get-Content $cfgPath -Raw | ConvertFrom-Json).github.repo)
+    }
 }
 
 # --- Issue yoksa bu bilgisayar icin otomatik ac (her bilgisayarin kendi issue'su olur) ---
 $cur = Get-Content $cfgPath -Raw | ConvertFrom-Json
 if ($cur.github.repo -and -not $cur.github.issue) {
     node (Join-Path $root 'src\cli.js') init-github
-    if ($LASTEXITCODE -ne 0) { throw 'Kontrol issue''su acilamadi (token izni: Issues read/write).' }
+    if ($LASTEXITCODE -ne 0) {
+        Remove-Item -LiteralPath $tokenPath -Force -ErrorAction SilentlyContinue   # yanlis token kalmasin; yeniden calistirinca tekrar sorulur
+        throw 'Kontrol issue''su acilamadi. Token gecersiz ya da izni eksik olabilir (Issues: Read and write). Kayitli token silindi; kurulumu tekrar calistirin.'
+    }
 }
 
 # --- Izolasyon dogrulamasi (kurulumu burada durdurur) ---

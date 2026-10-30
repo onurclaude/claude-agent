@@ -10,9 +10,18 @@ param(
     [string]$AllowedUser,
     [string]$Source = 'https://github.com/onurclaude/claude-agent/archive/refs/heads/main.zip',
     [switch]$NoStart,
+    [switch]$NoGitHub,  # GitHub kontrolu olmadan kur (giris PC'den yapilir)
     [switch]$Update   # zaten kuruluysa projeyi yeniden indirip gunceller (ayarlar/veri/giris korunur)
 )
 $ErrorActionPreference = 'Stop'
+
+# Varsayilan kontrol deposu (bu projenin sahibine ait). Baska biri kullaniyorsa -Repo ile kendi deposunu verir
+# ya da bu degeri degistirir. Verilmezse soru sorulmaz.
+$DefaultControlRepo = 'onurclaude/claude-agent-control'
+if (-not $NoGitHub) {
+    if (-not $Repo) { $Repo = $DefaultControlRepo }
+    if (-not $AllowedUser) { $AllowedUser = ($Repo -split '/')[0] }
+}
 
 # Kurulu = gorev kayitli VE gorevin gosterdigi run.ps1 diskte var. Gorev var ama dosya yoksa "bozuk" sayilir ve yeniden kurulur.
 function Get-Installed {
@@ -99,5 +108,6 @@ if ($Repo) { $installArgs.Repo = $Repo }
 if ($Issue) { $installArgs.Issue = $Issue }
 if ($AllowedUser) { $installArgs.AllowedUser = $AllowedUser }
 if ($NoStart) { $installArgs.NoStart = $true }
+if ($NoGitHub) { $installArgs.NoGitHub = $true }
 $installArgs.Force = $true   # kurulu-mu kontrolu yukarida yapildi; buraya gelindiyse kurulum/guncelleme istenmistir
 & (Join-Path $root 'scripts\install.ps1') @installArgs
