@@ -1,0 +1,21 @@
+{
+  "github": {
+    "repo": "KULLANICI/claude-agent-control",
+    "issue": 1,
+    "allowedUsers": ["KULLANICI"]
+  },
+  "email": null,
+  "authCheckIntervalSec": 60,
+  "githubPollIntervalSec": 60,
+  "logoutConfirmations": 2,
+  "pollGithubWhileLoggedIn": false,
+  "loginTimeoutSec": 600,
+  "claudePath": null,
+  "remoteControl": {
+    "enabled": true,
+    "name": null,
+    "permissionMode": "default",
+    "spawn": "same-dir",
+    "capacity": 4
+  }
+}

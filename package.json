@@ -1,0 +1,14 @@
+{
+  "name": "claude-persistent-agent",
+  "version": "1.0.0",
+  "description": "Windows 11 icin kalici, izole hesapli Claude Code ajani (GitHub kontrollu yeniden giris + Remote Control)",
+  "private": true,
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "bin": { "claude-agent": "src/cli.js" },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "verify": "node src/cli.js verify",
+    "start": "node src/cli.js run"
+  }
+}
