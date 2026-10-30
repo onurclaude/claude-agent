@@ -14,6 +14,14 @@ const lock = require('./lock');
 const net = require('./net');
 const procs = require('./procs');
 
+// Windows'ta Node, ag istegi (fetch) tamamlandiktan hemen sonra process.exit() ile cikinca
+// "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)" ile cokup sifirdan farkli kod dondurebilir
+// (yeniden uretildi: 25/25). Kisa bir gecikme baglantilarin kapanmasina izin verir.
+function exitSoon(code) {
+  process.exitCode = code;
+  setTimeout(() => process.exit(code), 300);
+}
+
 function prepare(cfg) {
   for (const d of [cfg.paths.home, cfg.paths.claudeConfigDir, cfg.paths.logDir, cfg.paths.workspace]) {
     fs.mkdirSync(d, { recursive: true });
@@ -51,7 +59,7 @@ async function cmdRun(cfg) {
     closing = true;
     await sup.shutdown(sig);
     release();
-    process.exit(sup.exitCode);
+    exitSoon(sup.exitCode);
   };
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGBREAK']) process.on(sig, () => close(sig));
   process.on('uncaughtException', (e) => { log.error('beklenmeyen hata', e); close('uncaughtException'); });
@@ -156,8 +164,8 @@ async function main() {
   return table[cmd](cfg);
 }
 
-main().then((c) => process.exit(c || 0), (e) => {
+main().then((c) => exitSoon(c || 0), (e) => {
   console.error(e.message);
   try { new Logger(config.pathsFor(config.defaultHome()).logDir, 'agent').error('kritik hata', e); } catch { /* yok */ }
-  process.exit(1);
+  exitSoon(1);
 });

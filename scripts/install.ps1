@@ -63,7 +63,9 @@ if (-not (Test-Path $tokenPath) -and ((Get-Content $cfgPath -Raw | ConvertFrom-J
 $cur = Get-Content $cfgPath -Raw | ConvertFrom-Json
 if ($cur.github.repo -and -not $cur.github.issue) {
     node (Join-Path $root 'src\cli.js') init-github
-    if ($LASTEXITCODE -ne 0) {
+    # Basari olcutu cikis kodu degil, issue numarasinin yapilandirmaya yazilmasidir.
+    $after = Get-Content $cfgPath -Raw | ConvertFrom-Json
+    if (-not $after.github.issue) {
         Remove-Item -LiteralPath $tokenPath -Force -ErrorAction SilentlyContinue   # yanlis token kalmasin; yeniden calistirinca tekrar sorulur
         throw 'Kontrol issue''su acilamadi. Token gecersiz ya da izni eksik olabilir (Issues: Read and write). Kayitli token silindi; kurulumu tekrar calistirin.'
     }
