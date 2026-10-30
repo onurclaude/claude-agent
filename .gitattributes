@@ -1,0 +1,3 @@
+# cmd dosyalari depoda da CRLF kalir (raw indirmede cmd.exe icin gerekli); git donusturmesin.
+*.cmd -text
+*.bat -text

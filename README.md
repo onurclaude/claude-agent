@@ -47,6 +47,9 @@ GitHub tarafı için: **özel (private)** bir depo + bir issue, GitHub mobil uyg
 1. **Kontrol deposu:** GitHub'da bir **özel (private)** depo açın (ör. `claude-agent-control`). Ajan giriş bağlantısını ve tek kullanımlık kodu burada taşır.
 2. **Token:** GitHub → Settings → Developer settings → *Fine-grained tokens*. Repository access: yalnızca o kontrol deposu. İzin: **Issues: Read and write** (Metadata: read otomatik). Kurulumda bir kez yapıştıracaksınız; Windows DPAPI ile şifrelenip saklanır.
 
+### Çift tıkla kurulum (komut yazmadan)
+[`Kur.cmd`](https://raw.githubusercontent.com/onurclaude/claude-agent/main/Kur.cmd) dosyasını indirip (sağ tık → *Farklı kaydet*) çift tıklayın. Pencerede kontrol deposunu (`sahip/depo`) ve GitHub token'ını sorar, gerisini kendisi yapar; zaten kuruluysa hiçbir şey değiştirmez. Kaldırmak için [`Kaldir.cmd`](https://raw.githubusercontent.com/onurclaude/claude-agent/main/Kaldir.cmd) dosyasını çift tıklayın (veriyi de silip silmeyeceğinizi sorar). Windows "tanınmayan uygulama" uyarısı gösterirse *Yine de çalıştır* deyin.
+
 ### Tek komutla kurulum (git, Node.js, Claude Code gerekmez; eksikse kendisi kurar)
 ```powershell
 irm https://raw.githubusercontent.com/onurclaude/claude-agent/main/scripts/bootstrap.ps1 -OutFile $env:TEMP\ca.ps1
