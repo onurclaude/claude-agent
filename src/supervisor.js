@@ -82,7 +82,8 @@ class Supervisor {
       if (this.failCount >= this.d.cfg.logoutConfirmations) await this.onLoggedOut();
     }
 
-    if (this.loggedOutMode || (this.d.cfg.pollGithubWhileLoggedIn && this.mode === 'RUNNING')) {
+    // Komutlar (/status, /restart, /login...) oturum acikken de calismali; her 60 sn'de tek istek.
+    if (this.loggedOutMode || this.mode === 'RUNNING') {
       await this.pollGithub();
       if (this.loggedOutMode && fs.existsSync(this.d.cfg.paths.loginRequestFile)) {
         try { fs.unlinkSync(this.d.cfg.paths.loginRequestFile); } catch { /* yok */ }
@@ -302,6 +303,7 @@ class Supervisor {
     state.update((s) => { s.supervisorPid = process.pid; });
     await rc.cleanupOrphan();
     log.info(`ajan basladi (pid ${process.pid}), izole dizin: ${cfg.paths.claudeConfigDir}`);
+    await this.say(`🤖 Ajan basladi (${require('os').hostname()}, ${new Date().toLocaleString('tr-TR')}). Komutlar: \`/status\` \`/help\``);
     while (!this.stopping) {
       const t0 = Date.now();
       try { await this.tick(); } catch (e) { log.error('tick hatasi', e); }

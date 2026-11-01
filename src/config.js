@@ -9,7 +9,6 @@ const DEFAULTS = {
   authCheckIntervalSec: 60,
   githubPollIntervalSec: 60,
   logoutConfirmations: 2,
-  pollGithubWhileLoggedIn: false,
   loginTimeoutSec: 600,
   claudePath: null,
   remoteControl: {

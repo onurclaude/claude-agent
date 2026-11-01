@@ -445,3 +445,16 @@ test('LoginFlow: yerel yedek yol (submit-code dosyasi) calisir ve dosya silinir'
   child.emit('exit', 0);
   assert.equal((await p).ok, true);
 });
+
+test('oturum aciksa da /status komutu yanitlanir (yetkisiz kullanici yoksayilir)', async () => {
+  const h = harness();
+  await h.sup.tick();
+  assert.equal(h.sup.mode, 'RUNNING');
+  h.say('baskasi', '/status');
+  await h.sup.tick();
+  assert.equal(h.posts.length, 0);
+  h.say('onur', '/status');
+  await h.sup.tick();
+  assert.equal(h.posts.length, 1);
+  assert.match(h.posts[0], /RUNNING/);
+});

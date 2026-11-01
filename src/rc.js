@@ -40,9 +40,11 @@ class RemoteControl {
     const rc = this.cfg.remoteControl;
     const s = this.state.data.rc;
     const useContinue = s.hadSession && !s.continueFailed;
-    const args = ['remote-control', '--name', rc.name, '--spawn', rc.spawn, '--capacity', String(rc.capacity),
-      '--permission-mode', rc.permissionMode];
-    if (useContinue) args.push('--continue');
+    // --continue; --spawn/--capacity/--create-session-in-dir ile birlikte kullanilamaz (CLI hata verir).
+    const args = useContinue
+      ? ['remote-control', '--name', rc.name, '--permission-mode', rc.permissionMode, '--continue']
+      : ['remote-control', '--name', rc.name, '--spawn', rc.spawn, '--capacity', String(rc.capacity),
+        '--permission-mode', rc.permissionMode];
     fs.mkdirSync(this.cfg.paths.workspace, { recursive: true });
     this.claude.ensureWorkspaceTrusted(this.cfg.paths.workspace);
 
@@ -99,7 +101,12 @@ class RemoteControl {
         st.rc.lastExit = { code, at: new Date().toISOString(), runtimeSec, tail: tail.slice(-300) };
         if (useContinue && runtimeSec < 15 && code !== 0) st.rc.continueFailed = true;
       });
-      this._scheduleRestart(runtimeSec);
+      if (useContinue && runtimeSec < 15 && code !== 0) {
+        this.backoffSec = 5;
+        this.nextStartAt = 0; // --continue calismadi: beklemeden --continue'suz yeni oturum ac
+      } else {
+        this._scheduleRestart(runtimeSec);
+      }
     };
     child.once('exit', finish);
     child.once('error', (e) => { this.log.error('remote-control surec hatasi', e); finish(-1); });
