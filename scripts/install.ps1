@@ -82,10 +82,13 @@ $runArgs = '--headless powershell.exe -NoProfile -ExecutionPolicy Bypass -File "
 if ($env:CLAUDE_AGENT_HOME) { $runArgs += (' -AgentHome "{0}"' -f $env:CLAUDE_AGENT_HOME) }
 $action = New-ScheduledTaskAction -Execute 'conhost.exe' -Argument $runArgs -WorkingDirectory $root
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+# Guvence: oturum acilisi kacirilsa ya da surec olurse 5 dakikada bir kontrol eder; calisiyorsa hicbir sey yapmaz
+# (MultipleInstances IgnoreNew + ajan kilidi ikinci ornegi engeller).
+$repeat = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable `
     -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
-Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($trigger, $repeat) -Settings $settings -Principal $principal -Force | Out-Null
 Write-Host "Gorev kaydedildi: $taskName (oturum acildiginda baslar)"
 
 if (-not $NoStart) { Start-ScheduledTask -TaskName $taskName; Write-Host 'Ajan baslatildi. Durum: scripts\status.ps1' }

@@ -16,7 +16,6 @@ const DEFAULTS = {
     name: null,
     permissionMode: 'default',
     spawn: 'same-dir',
-    capacity: 4,
   },
 };
 
@@ -59,7 +58,6 @@ function validate(c) {
   if (!PERMISSION_MODES.includes(rc.permissionMode)) throw new Error(`gecersiz permissionMode: ${rc.permissionMode}`);
   if (!['same-dir', 'worktree', 'session'].includes(rc.spawn)) throw new Error(`gecersiz spawn: ${rc.spawn}`);
   if (!SAFE_ARG.test(rc.name)) throw new Error('remoteControl.name yalnizca harf, rakam, bosluk ve ()-._ icerebilir');
-  if (!Number.isInteger(rc.capacity) || rc.capacity < 1) throw new Error('remoteControl.capacity >= 1 olmali');
   for (const k of ['authCheckIntervalSec', 'githubPollIntervalSec', 'loginTimeoutSec']) {
     if (!(c[k] >= 5)) throw new Error(`${k} >= 5 olmali`);
   }

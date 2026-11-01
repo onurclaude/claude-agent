@@ -26,8 +26,8 @@ class RemoteControl {
 
   // Onceki ajan calismasindan kalan, YALNIZCA bu ajanin isimli sureci varsa temizler.
   async cleanupOrphan() {
-    const { pid } = this.state.data.rc;
-    if (pid && await killIfOurs(pid, this.marker)) this.log.warn(`onceki calismadan kalan remote-control sureci sonlandirildi (pid ${pid})`);
+    const { pid, marker } = this.state.data.rc;
+    if (pid && await killIfOurs(pid, marker || this.marker)) this.log.warn(`onceki calismadan kalan remote-control sureci sonlandirildi (pid ${pid})`);
     this.state.update((s) => { s.rc.pid = null; });
   }
 
@@ -39,12 +39,13 @@ class RemoteControl {
   async start() {
     const rc = this.cfg.remoteControl;
     const s = this.state.data.rc;
-    const useContinue = s.hadSession && !s.continueFailed;
-    // --continue; --spawn/--capacity/--create-session-in-dir ile birlikte kullanilamaz (CLI hata verir).
+    // Tek oturum: yeniden baslatmada kayitli oturuma --session-id ile baglanilir (ayni sohbet, ~3 sn kesinti).
+    // --session-id, --spawn/--capacity ile birlikte kullanilamaz. Oturum bitmis/gecersizse yeni oturum acilir.
+    const sid = s.sessionId;
+    const useContinue = !!sid && !s.sessionFailed;
     const args = useContinue
-      ? ['remote-control', '--name', rc.name, '--permission-mode', rc.permissionMode, '--continue']
-      : ['remote-control', '--name', rc.name, '--spawn', rc.spawn, '--capacity', String(rc.capacity),
-        '--permission-mode', rc.permissionMode];
+      ? ['remote-control', '--session-id', sid, '--permission-mode', rc.permissionMode]
+      : ['remote-control', '--name', rc.name, '--spawn', rc.spawn, '--capacity', '1', '--permission-mode', rc.permissionMode];
     fs.mkdirSync(this.cfg.paths.workspace, { recursive: true });
     this.claude.ensureWorkspaceTrusted(this.cfg.paths.workspace);
 
@@ -57,8 +58,8 @@ class RemoteControl {
       this._scheduleRestart(0);
       return;
     }
-    this.log.info(`remote-control basladi (pid ${child.pid}${useContinue ? ', --continue' : ''})`);
-    this.state.update((st) => { st.rc.pid = child.pid; st.rc.marker = this.marker; st.rc.url = null; });
+    this.log.info(`remote-control basladi (pid ${child.pid}${useContinue ? `, oturum ${sid}` : ', yeni oturum'})`);
+    this.state.update((st) => { st.rc.pid = child.pid; st.rc.marker = useContinue ? sid : this.marker; st.rc.url = null; });
     this._attach(child, useContinue, startedAt);
   }
 
@@ -78,7 +79,7 @@ class RemoteControl {
       }
       tail = (tail + text.replace(ANSI_RE, '')).slice(-600);
       const m = URL_RE.exec(text);
-      if (m) this.state.update((st) => { st.rc.url = m[0]; });
+      if (m) this.state.update((st) => { st.rc.url = m[0]; st.rc.sessionId = m[0].split('/').pop(); });
       // Hesapta ilk kullanimda sorulan tek seferlik onay (gercek CLI ile dogrulandi).
       if (/Enable Remote Control\? \(y\/n\)/.test(text) && child.stdin?.writable) {
         child.stdin.write('y\n');
@@ -89,7 +90,7 @@ class RemoteControl {
     child.stderr?.on('data', onData);
 
     const mark = setTimeout(() => {
-      if (this.child === child) this.state.update((st) => { st.rc.hadSession = true; st.rc.continueFailed = false; });
+      if (this.child === child) this.state.update((st) => { st.rc.hadSession = true; st.rc.sessionFailed = false; });
     }, 20000);
     mark.unref?.();
 
@@ -103,11 +104,11 @@ class RemoteControl {
         st.rc.pid = null;
         st.rc.restarts += 1;
         st.rc.lastExit = { code, at: new Date().toISOString(), runtimeSec, tail: tail.slice(-300) };
-        if (useContinue && runtimeSec < 15 && code !== 0) st.rc.continueFailed = true;
+        if (useContinue && (runtimeSec < 15 || code === 0)) st.rc.sessionFailed = true;
       });
-      if (useContinue && runtimeSec < 15 && code !== 0) {
+      if (useContinue && (runtimeSec < 15 || code === 0)) {
         this.backoffSec = 5;
-        this.nextStartAt = 0; // --continue calismadi: beklemeden --continue'suz yeni oturum ac
+        this.nextStartAt = 0; // oturum gecersiz/bitti: beklemeden yeni oturum ac
       } else {
         this._scheduleRestart(runtimeSec);
       }

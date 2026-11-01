@@ -109,7 +109,7 @@ class Supervisor {
       this.setMode('RUNNING');
       await this.d.rc.stop();
       await this.d.rc.ensure();
-      await this.say(`🤖 ✅ **Giris basarili, auth status dogrulandi.** Remote Control yeniden baslatildi; ajan kaldigi yerden devam ediyor.${it?.hadSession ? '\n\nYarim kalan oturum, mumkunse `--continue` ile yeniden baglanir.' : ''}`);
+      await this.say(`🤖 ✅ **Giris basarili, auth status dogrulandi.** Remote Control yeniden baslatildi; ajan kaldigi yerden devam ediyor.${it?.hadSession ? '\n\nYarim kalan sohbet, mumkunse ayni oturuma yeniden baglanir.' : ''}`);
     } else {
       if (was !== 'RUNNING') this.setMode('RUNNING');
       await this.d.rc.ensure();

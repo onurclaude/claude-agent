@@ -102,6 +102,8 @@ Get-CimInstance Win32_Process | ? { $_.CommandLine -match 'AnyDeskClaude\\(scrip
 
 GitHub komutları (issue yorumunun ilk satırı; yalnızca `allowedUsers`): `/code KOD` `/login` `/cancel-login` `/status` `/restart` `/update` `/help`
 
+**Oturum sürekliliği:** tek oturum çalışır. Ajan yeniden başladığında (`/restart`, çökme, bilgisayar açılışı) kayıtlı oturuma `--session-id` ile bağlanır; yani **aynı sohbet** devam eder (yaklaşık 3 sn kesinti). Oturum bitmiş/geçersizse yeni oturum açılır. Görev, oturum açılışında ve ayrıca 5 dakikada bir başlatılır (çalışıyorsa bir şey yapmaz). `scriptsstop.ps1` görevi devre dışı bırakır, `start.ps1` açar.
+
 `/update`: son sürümü GitHub'dan indirir, doğrular ve ajanı **süreci kapatmadan** yeni koda geçirir; Remote Control bağlantısı kopmaz (oturum açılmışken ve giriş akışı yokken çalışır). Hata olursa eski sürüm korunur. `cli.js`/betik değişiklikleri bir sonraki yeniden başlatmada devreye girer.
 
 ## Hesap izolasyonu

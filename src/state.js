@@ -11,7 +11,7 @@ function fresh() {
     lastLogoutAt: null,
     lastLoginAt: null,
     gh: { cursorId: 0, since: null },
-    rc: { pid: null, marker: null, url: null, hadSession: false, continueFailed: false, restarts: 0, lastExit: null },
+    rc: { pid: null, marker: null, url: null, hadSession: false, sessionId: null, sessionFailed: false, restarts: 0, lastExit: null },
     interrupted: null,
   };
 }

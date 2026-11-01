@@ -332,7 +332,8 @@ test('remote-control: dogru bayraklarla baslar, URL yakalar, cokunce backoff ile
   const a = spawned[0].args;
   assert.equal(a[0], 'remote-control');
   assert.ok(a.includes('--name') && a.includes('--permission-mode'));
-  assert.ok(!a.includes('--continue'));
+  assert.equal(a[a.indexOf('--capacity') + 1], '1');
+  assert.ok(!a.includes('--session-id'));
   assert.equal(spawned[0].o.cwd, cfg.paths.workspace);
 
   spawned[0].c.stdout.emit('data', 'Session: https://claude.ai/code/session_ABC\n');
@@ -347,23 +348,28 @@ test('remote-control: dogru bayraklarla baslar, URL yakalar, cokunce backoff ile
   assert.equal(spawned.length, 2);
 });
 
-test('remote-control: --continue basarisizsa bir sonraki denemede kullanilmaz', async () => {
+test('remote-control: kayitli oturuma --session-id ile baglanir; basarisizsa yeni oturum acilir', async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'cagent-rc2-'));
   const cfg = config.load(home);
   fs.mkdirSync(cfg.paths.logDir, { recursive: true });
   const state = new StateStore(cfg.paths.stateFile);
-  state.update((s) => { s.rc.hadSession = true; });
+  state.update((s) => { s.rc.hadSession = true; s.rc.sessionId = 'session_OLD1'; });
   const spawned = [];
   let t = 1;
   const claude = { spawn: (args) => { const c = fakeChild(); spawned.push({ args, c }); return c; }, ensureWorkspaceTrusted: () => false };
   const rc = new RemoteControl({ cfg, claude, state, log: { info() {}, warn() {}, error() {} }, now: () => t });
   await rc.ensure();
-  assert.ok(spawned[0].args.includes('--continue'));
+  {
+    const a = spawned[0].args;
+    assert.equal(a[a.indexOf('--session-id') + 1], 'session_OLD1');
+    assert.ok(!a.includes('--spawn') && !a.includes('--capacity'));
+  }
   t += 3000;
   spawned[0].c.emit('exit', 1);
   t += 600000;
   await rc.ensure();
-  assert.ok(!spawned[1].args.includes('--continue'));
+  assert.ok(!spawned[1].args.includes('--session-id'));
+  assert.ok(spawned[1].args.includes('--spawn'));
 });
 
 test('remote-control: ilk kullanim onayina "y" verir, URL OSC/ANSI icinden ayiklanir, tekrar eden ekran loglanmaz', async () => {
@@ -471,4 +477,29 @@ test('/update: yalnizca yetkili kullanici tetikler, sonuc issue\'ya yazilir', as
   await h.sup.tick();
   assert.equal(calls, 1);
   assert.match(h.posts.join('\n'), /✅ Guncellendi: abc1234/);
+});
+
+test('remote-control: oturum adresi kaydedilir; stop sonrasi beklemeden AYNI oturuma baglanir; oturum bitince yeni oturum acilir', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'cagent-rc4-'));
+  const cfg = config.load(home);
+  fs.mkdirSync(cfg.paths.logDir, { recursive: true });
+  const state = new StateStore(cfg.paths.stateFile);
+  const spawned = [];
+  let t = 1;
+  const claude = { spawn: (args) => { const c = fakeChild(); spawned.push({ args, c }); return c; }, ensureWorkspaceTrusted: () => false };
+  const rc = new RemoteControl({ cfg, claude, state, log: { info() {}, warn() {}, error() {} }, now: () => t });
+  await rc.ensure();
+  spawned[0].c.stdout.emit('data', 'Continue: https://claude.ai/code/session_KEEP-1\n');
+  assert.equal(state.data.rc.sessionId, 'session_KEEP-1');
+
+  await rc.stop(); // planli yeniden baslatma (/restart): bekleme yok
+  await rc.ensure();
+  const a = spawned[1].args;
+  assert.equal(a[a.indexOf('--session-id') + 1], 'session_KEEP-1');
+  assert.equal(state.data.rc.marker, 'session_KEEP-1');
+
+  t += 60000;
+  spawned[1].c.emit('exit', 0); // oturum tamamlandi
+  await rc.ensure();
+  assert.ok(spawned[2].args.includes('--spawn'), 'bitmis oturuma degil, yeni oturuma gecmeli');
 });
