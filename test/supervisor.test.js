@@ -458,3 +458,17 @@ test('oturum aciksa da /status komutu yanitlanir (yetkisiz kullanici yoksayilir)
   assert.equal(h.posts.length, 1);
   assert.match(h.posts[0], /RUNNING/);
 });
+
+test('/update: yalnizca yetkili kullanici tetikler, sonuc issue\'ya yazilir', async () => {
+  const h = harness();
+  let calls = 0;
+  h.sup.d.update = async () => { calls += 1; return { ok: true, message: 'Guncellendi: abc1234.' }; };
+  await h.sup.tick();
+  h.say('baskasi', '/update');
+  await h.sup.tick();
+  assert.equal(calls, 0);
+  h.say('onur', '/update');
+  await h.sup.tick();
+  assert.equal(calls, 1);
+  assert.match(h.posts.join('\n'), /✅ Guncellendi: abc1234/);
+});

@@ -1,6 +1,6 @@
 'use strict';
 
-const COMMANDS = new Set(['login', 'cancel-login', 'status', 'restart', 'help']);
+const COMMANDS = new Set(['login', 'cancel-login', 'status', 'restart', 'update', 'help']);
 
 // Yalnizca yorumun ilk dolu satiri "/komut" ise komuttur. Ajanin kendi yorumlari "🤖" ile basladigi icin
 // kendi mesajlarini komut sanmaz.

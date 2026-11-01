@@ -7,11 +7,7 @@ const { Logger } = require('./logger');
 const { StateStore } = require('./state');
 const { ClaudeCli, IsolationError } = require('./claude');
 const { GitHub, readToken } = require('./github');
-const { RemoteControl } = require('./rc');
-const { LoginFlow } = require('./login');
-const { Supervisor } = require('./supervisor');
 const lock = require('./lock');
-const net = require('./net');
 const procs = require('./procs');
 
 // Windows'ta Node, ag istegi (fetch) tamamlandiktan hemen sonra process.exit() ile cikinca
@@ -28,15 +24,6 @@ function prepare(cfg) {
   }
 }
 
-function makeGithub(cfg, log) {
-  const { repo, issue } = cfg.github;
-  if (!repo || !issue) { log.warn('GitHub ayarli degil (github.repo / github.issue); uzaktan giris kontrolu KAPALI'); return null; }
-  let token;
-  try { token = readToken(cfg.paths.githubTokenFile); } catch (e) { log.error('GitHub tokeni okunamadi (scripts\\set-github-token.ps1 ile yeniden kaydedin); uzaktan giris kontrolu KAPALI'); return null; }
-  if (!token) { log.warn('GitHub tokeni yok (scripts\\set-github-token.ps1); uzaktan giris kontrolu KAPALI'); return null; }
-  return new GitHub({ repo, issue, token });
-}
-
 async function cmdRun(cfg) {
   prepare(cfg);
   const log = new Logger(cfg.paths.logDir, 'agent', { echo: process.stdout.isTTY });
@@ -44,14 +31,7 @@ async function cmdRun(cfg) {
   if (!release) { log.warn('baska bir ajan ornegi zaten calisiyor'); return 4; }
 
   const state = new StateStore(cfg.paths.stateFile);
-  const claude = new ClaudeCli(cfg);
-  const github = makeGithub(cfg, log);
-  const rc = new RemoteControl({ cfg, claude, state, log });
-  const sup = new Supervisor({
-    cfg, log, state, claude, github, net, rc,
-    loginFactory: ({ onUrl }) => new LoginFlow({ cfg, claude, log, onUrl }),
-    sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
-  });
+  let sup = require('./app').build({ cfg, log, state }); // /update ile yeni kodla degisebilir
 
   let closing = false;
   const close = async (sig) => {
@@ -65,7 +45,11 @@ async function cmdRun(cfg) {
   process.on('uncaughtException', (e) => { log.error('beklenmeyen hata', e); close('uncaughtException'); });
   process.on('unhandledRejection', (e) => log.error('islenmeyen reddedilme', e));
 
-  const code = await sup.run();
+  let code = await sup.run();
+  while (sup.successor && !closing) { // /update: surec ve remote-control acik kalir, yeni Supervisor devralir
+    sup = sup.successor;
+    code = await sup.run();
+  }
   await sup.shutdown('dongu bitti');
   release();
   return code;

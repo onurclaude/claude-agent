@@ -100,7 +100,9 @@ Get-CimInstance Win32_Process | ? { $_.CommandLine -match 'AnyDeskClaude\\(scrip
 | `scripts\uninstall.ps1 [-Logout] [-PurgeData]` | Görevi kaldırır; isteğe bağlı izole hesaptan çıkış ve veri silme |
 | `npm test` | Testler |
 
-GitHub komutları (issue yorumunun ilk satırı; yalnızca `allowedUsers`): `/code KOD` `/login` `/cancel-login` `/status` `/restart` `/help`
+GitHub komutları (issue yorumunun ilk satırı; yalnızca `allowedUsers`): `/code KOD` `/login` `/cancel-login` `/status` `/restart` `/update` `/help`
+
+`/update`: son sürümü GitHub'dan indirir, doğrular ve ajanı **süreci kapatmadan** yeni koda geçirir; Remote Control bağlantısı kopmaz (oturum açılmışken ve giriş akışı yokken çalışır). Hata olursa eski sürüm korunur. `cli.js`/betik değişiklikleri bir sonraki yeniden başlatmada devreye girer.
 
 ## Hesap izolasyonu
 

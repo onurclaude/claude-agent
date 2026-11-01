@@ -208,8 +208,14 @@ class Supervisor {
       await this.d.rc.ensure();
       return this.say('🤖 Remote Control yeniden baslatildi.');
     }
+    if (cmd === 'update') {
+      if (!this.d.update) return this.say('🤖 Bu kurulumda /update desteklenmiyor.');
+      await this.say('🤖 Guncelleme kontrol ediliyor...');
+      const r = await this.d.update(this);
+      return this.say(`🤖 ${r.ok ? '✅' : '⚠️'} ${r.message}`);
+    }
     if (cmd === 'status') return this.say(this.statusText());
-    return this.say('🤖 Komutlar: `/login` (yeni giris baglantisi) `/code KOD` `/cancel-login` `/status` `/restart` `/help`');
+    return this.say('🤖 Komutlar: `/login` (yeni giris baglantisi) `/code KOD` `/cancel-login` `/status` `/restart` `/update` `/help`');
   }
 
   statusText() {
@@ -301,9 +307,13 @@ class Supervisor {
   async run() {
     const { cfg, log, rc, state } = this.d;
     state.update((s) => { s.supervisorPid = process.pid; });
-    await rc.cleanupOrphan();
-    log.info(`ajan basladi (pid ${process.pid}), izole dizin: ${cfg.paths.claudeConfigDir}`);
-    await this.say(`🤖 Ajan basladi (${require('os').hostname()}, ${new Date().toLocaleString('tr-TR')}). Komutlar: \`/status\` \`/help\``);
+    if (this.resumed) {
+      log.info('ajan yeni koda gecti (surec ve remote-control kapatilmadi)');
+    } else {
+      await rc.cleanupOrphan();
+      log.info(`ajan basladi (pid ${process.pid}), izole dizin: ${cfg.paths.claudeConfigDir}`);
+      await this.say(`🤖 Ajan basladi (${require('os').hostname()}, ${new Date().toLocaleString('tr-TR')}). Komutlar: \`/status\` \`/update\` \`/help\``);
+    }
     while (!this.stopping) {
       const t0 = Date.now();
       try { await this.tick(); } catch (e) { log.error('tick hatasi', e); }

@@ -57,10 +57,14 @@ class RemoteControl {
       this._scheduleRestart(0);
       return;
     }
-    this.child = child;
     this.log.info(`remote-control basladi (pid ${child.pid}${useContinue ? ', --continue' : ''})`);
     this.state.update((st) => { st.rc.pid = child.pid; st.rc.marker = this.marker; st.rc.url = null; });
+    this._attach(child, useContinue, startedAt);
+  }
 
+  // Calisan surece dinleyicileri baglar. Guncelleme sirasinda surec yeni koda devredilirken de kullanilir.
+  _attach(child, useContinue, startedAt) {
+    this.child = child;
     let tail = '';
     const seen = new Set(); // CLI durum ekranini saniyede bir yeniden cizer; tekrar eden satirlar loglanmaz
     const onData = (buf) => {
@@ -108,8 +112,31 @@ class RemoteControl {
         this._scheduleRestart(runtimeSec);
       }
     };
+    this._att = { child, useContinue, startedAt, mark };
     child.once('exit', finish);
     child.once('error', (e) => { this.log.error('remote-control surec hatasi', e); finish(-1); });
+    if (child.exitCode !== null && child.exitCode !== undefined) finish(child.exitCode); // devir sirasinda cikmis olabilir
+  }
+
+  // Sureci OLDURMEDEN bu nesneden ayirir (kod guncellemesi: yeni RemoteControl nesnesi adopt() ile alir).
+  detach() {
+    const att = this._att;
+    if (!this.child || !att) return null;
+    const { child } = att;
+    clearTimeout(att.mark);
+    child.removeAllListeners('exit');
+    child.removeAllListeners('error');
+    child.stdout?.removeAllListeners('data');
+    child.stderr?.removeAllListeners('data');
+    this.child = null;
+    this._att = null;
+    return { child, useContinue: att.useContinue, startedAt: att.startedAt };
+  }
+
+  adopt(handoff) {
+    if (!handoff) return;
+    this.log.info(`remote-control sureci yeni koda devredildi (pid ${handoff.child.pid})`);
+    this._attach(handoff.child, handoff.useContinue, handoff.startedAt);
   }
 
   _scheduleRestart(runtimeSec) {
